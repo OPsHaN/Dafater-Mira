@@ -129,6 +129,9 @@ import { ToastService } from '../../core/toast.service';
                 شركة أوبشن لتطوير البرمجيات
               </a>
             </p>
+            <p class="mt-8 text-center text-sm font-medium text-slate-400">
+              Software Version 1.0.1
+            </p>
           </div>
         </div>
 
