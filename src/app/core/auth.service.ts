@@ -8,6 +8,7 @@ const AUTH_KEY = 'mira_auth';
 export class AuthService {
   private readonly state = signal<LoginResponse | null>(this.readStoredAuth());
   readonly user = computed(() => this.state());
+  readonly userName = computed(() => this.state()?.name ?? this.state()?.phone ?? null);
   readonly role = computed(() => this.normalizeRole(this.state()?.userRole));
   readonly isAuthenticated = computed(() => Boolean(this.state()?.token));
 
@@ -15,6 +16,9 @@ export class AuthService {
 
   setSession(session: LoginResponse) {
     session.userRole = this.normalizeRole(session.userRole) ?? session.userRole;
+    if (!session.name) {
+      session.name = this.extractNameFromToken(session.token);
+    }
     localStorage.setItem(AUTH_KEY, JSON.stringify(session));
     this.state.set(session);
   }
@@ -56,10 +60,30 @@ export class AuthService {
   private readStoredAuth(): LoginResponse | null {
     try {
       const raw = localStorage.getItem(AUTH_KEY);
-      return raw ? (JSON.parse(raw) as LoginResponse) : null;
+      if (!raw) return null;
+      const session = JSON.parse(raw) as LoginResponse;
+      if (!session.name && session.token) {
+        session.name = this.extractNameFromToken(session.token);
+      }
+      return session;
     } catch {
       localStorage.removeItem(AUTH_KEY);
       return null;
+    }
+  }
+
+  private extractNameFromToken(token: string): string | undefined {
+    try {
+      const payload = JSON.parse(atob(token.split('.')[1]));
+      return (
+        (payload['name'] as string | undefined) ||
+        (payload['Name'] as string | undefined) ||
+        (payload['fullName'] as string | undefined) ||
+        (payload['given_name'] as string | undefined) ||
+        (payload['unique_name'] as string | undefined)
+      );
+    } catch {
+      return undefined;
     }
   }
 }

@@ -81,8 +81,20 @@ export class ApiService {
     return this.unwrap<void>(this.client.delete(`/api/v1/admin/books/${id}`));
   }
 
+  async bulkDeleteBooks(bookIds: number[]) {
+    return this.unwrap<{ deletedCount: number }>(
+      this.client.post('/api/v1/admin/books/bulk-delete', { bookIds }),
+    );
+  }
+
   async updateBookSerial(id: number, newSerialStart: number) {
     return this.unwrap<Book>(this.client.put(`/api/v1/admin/books/${id}/serial`, { newSerialStart }));
+  }
+
+  async updateBookDeliveryDate(id: number, deliveryDate: string) {
+    return this.unwrap<Book>(
+      this.client.put(`/api/v1/admin/books/${id}/delivery-date`, { deliveryDate }),
+    );
   }
 
   async getDistributors(params: Record<string, string | number | null | undefined>, skipForbiddenHandling = false) {

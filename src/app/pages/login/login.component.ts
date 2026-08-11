@@ -205,9 +205,11 @@ export class LoginComponent {
 
       this.toast.show('تم تسجيل الدخول بنجاح', 'success');
 
+      console.log('User login data:', session);
       console.info('Mira login succeeded', {
         userId: session.userId,
         phone: session.phone,
+        name: session.name ?? this.auth.userName(),
         userRole: session.userRole,
         redirectTo,
       });

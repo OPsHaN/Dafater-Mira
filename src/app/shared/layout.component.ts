@@ -37,43 +37,55 @@ import { ROLE_LABELS, UserRole } from '../core/models';
             <nav
               class="flex flex-wrap items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 p-2 text-lg"
             >
-              @if (auth.role() === role.Admin) {
-                <a class="nav-link" routerLink="/admin/books" routerLinkActive="active">
+              @if (auth.role() === role.Admin || auth.role() === role.Accountant) {
+                <a
+                  class="nav-link"
+                  [routerLink]="['/', auth.role() === role.Admin ? 'admin' : 'accountant', 'dashboard']"
+                  routerLinkActive="active"
+                >
+                  الملخص
+                </a>
+
+                <a
+                  class="nav-link"
+                  [routerLink]="['/', auth.role() === role.Admin ? 'admin' : 'accountant', 'books']"
+                  routerLinkActive="active"
+                >
                   الدفاتر
                 </a>
 
-                <a class="nav-link" routerLink="/admin/distributors" routerLinkActive="active">
-                  الموزعون
+                <a
+                  class="nav-link"
+                  [routerLink]="['/', auth.role() === role.Admin ? 'admin' : 'accountant', 'bulk-create']"
+                  routerLinkActive="active"
+                >
+                  إنشاء دفاتر
                 </a>
 
+                <a
+                  class="nav-link"
+                  [routerLink]="['/', auth.role() === role.Admin ? 'admin' : 'accountant', 'search']"
+                  routerLinkActive="active"
+                >
+                  بحث
+                </a>
+
+                <a
+                  class="nav-link"
+                  [routerLink]="['/', auth.role() === role.Admin ? 'admin' : 'accountant', 'distributors']"
+                  routerLinkActive="active"
+                >
+                  الموزعون
+                </a>
+              }
+
+              @if (auth.role() === role.Admin) {
                 <a class="nav-link" routerLink="/admin/users" routerLinkActive="active">
                   المستخدمون
                 </a>
 
                 <a class="nav-link" routerLink="/admin/create-user" routerLinkActive="active">
                   مستخدم جديد
-                </a>
-              }
-
-              @if (auth.role() === role.Accountant) {
-                <a class="nav-link" routerLink="/accountant/dashboard" routerLinkActive="active">
-                  الملخص
-                </a>
-
-                <a class="nav-link" routerLink="/accountant/books" routerLinkActive="active">
-                  الدفاتر
-                </a>
-
-                <a class="nav-link" routerLink="/accountant/bulk-create" routerLinkActive="active">
-                  إنشاء دفاتر
-                </a>
-
-                <a class="nav-link" routerLink="/accountant/search" routerLinkActive="active">
-                  بحث
-                </a>
-
-                <a class="nav-link" routerLink="/accountant/distributors" routerLinkActive="active">
-                  الموزعون
                 </a>
               }
 
@@ -105,6 +117,10 @@ import { ROLE_LABELS, UserRole } from '../core/models';
                 <p class="text-xl font-black text-teal-700">
                   {{ roleLabel }}
                 </p>
+
+                @if (auth.userName()) {
+                  <p class="text-sm font-semibold text-slate-500">{{ auth.userName() }}</p>
+                }
               </div>
             </div>
           </div>

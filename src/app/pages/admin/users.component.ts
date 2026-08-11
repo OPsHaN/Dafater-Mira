@@ -43,7 +43,7 @@ import { StateBlockComponent } from '../../shared/state-block.component';
       <th
         class="border-l border-slate-200 px-6 py-5 !text-lg !font-black !text-slate-900"
       >
-        اسم الموزع
+        الاسم
       </th>
 
       <th
@@ -80,7 +80,7 @@ import { StateBlockComponent } from '../../shared/state-block.component';
         <td
           class="border-l border-slate-100 px-6 py-5 text-sm font-semibold text-slate-700"
         >
-          {{ user.distributorName || '-' }}
+          {{ user.name || user.distributorName || '-' }}
         </td>
 
         <!-- Actions -->
@@ -127,12 +127,10 @@ import { StateBlockComponent } from '../../shared/state-block.component';
               <span class="label">كلمة مرور جديدة</span>
               <input class="field" dir="ltr" type="password" [(ngModel)]="editPassword" name="password" placeholder="اتركها فارغة بدون تغيير" />
             </label>
-            @if (editing.role === role.Distributor) {
-              <label>
-                <span class="label">اسم الموزع</span>
-                <input class="field" [(ngModel)]="editName" name="name" />
-              </label>
-            }
+            <label>
+              <span class="label">الاسم</span>
+              <input class="field" [(ngModel)]="editName" name="name" />
+            </label>
           </div>
           <div class="mt-5 flex justify-end gap-2">
             <button class="btn-secondary" type="button" (click)="editing = null">إلغاء</button>
@@ -181,7 +179,7 @@ export class UsersComponent implements OnInit {
     this.editing = user;
     this.editPhone = user.phone;
     this.editPassword = '';
-    this.editName = user.distributorName ?? '';
+    this.editName = user.name ?? user.distributorName ?? '';
   }
 
   async saveEdit() {
@@ -193,7 +191,7 @@ export class UsersComponent implements OnInit {
     const body: Record<string, string> = {};
     if (this.editPhone !== this.editing.phone) body['phone'] = this.editPhone;
     if (this.editPassword) body['password'] = this.editPassword;
-    if (this.editing.role === UserRole.Distributor && this.editName !== (this.editing.distributorName ?? '')) body['name'] = this.editName;
+    if (this.editName !== (this.editing.name ?? this.editing.distributorName ?? '')) body['name'] = this.editName;
     this.saving = true;
     try {
       await this.api.updateUser(this.editing.userId, body);

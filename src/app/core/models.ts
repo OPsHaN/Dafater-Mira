@@ -22,6 +22,7 @@ export interface LoginResponse {
   userId: string;
   phone: string;
   userRole: UserRole;
+  name?: string;
 }
 
 export interface PaginatedResponse<T> {
@@ -58,7 +59,8 @@ export interface AdminUser {
   userId: string;
   phone: string;
   role: UserRole;
-  distributorName: string | null;
+  name: string | null;
+  distributorName?: string | null;
 }
 
 export const ROLE_LABELS: Record<UserRole, string> = {

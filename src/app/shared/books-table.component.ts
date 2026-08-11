@@ -75,6 +75,26 @@ import { NgClass } from '@angular/common';
       }
     }
 
+    @if (!loading && !error && page?.items?.length) {
+      <div class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div class="flex flex-wrap items-center gap-2">
+          @if (role === userRole.Admin && selectedBookIds.size) {
+            <button
+              class="btn-danger"
+              type="button"
+              [disabled]="bulkBusy"
+              (click)="deleteSelected()"
+            >
+              {{ bulkBusy ? 'جاري الحذف...' : 'حذف المحدد (' + selectedBookIds.size + ')' }}
+            </button>
+          }
+        </div>
+        <button class="btn-secondary" type="button" [disabled]="exportBusy" (click)="exportBooks()">
+          {{ exportBusy ? 'جاري التحميل...' : 'تحميل الدفاتر كإكسيل' }}
+        </button>
+      </div>
+    }
+
     @if (loading) {
       <app-state-block title="جاري تحميل الدفاتر" icon="⏳" />
     } @else if (error) {
@@ -87,6 +107,16 @@ import { NgClass } from '@angular/common';
           <table class="data-table w-full max-w-full border-collapse">
             <thead>
               <tr class="border-b-2 border-slate-100 bg-slate-100">
+                @if (role === userRole.Admin) {
+                  <th class="border-l border-slate-200 px-4 py-4 text-center !text-lg !font-black !text-slate-900">
+                    <input
+                      type="checkbox"
+                      [checked]="isAllSelected()"
+                      (change)="toggleSelectAll($any($event.target).checked)"
+                    />
+                  </th>
+                }
+
                 <th
                   class="border-l border-slate-200 px-4 py-4 text-center !text-lg !font-black !text-slate-900"
                 >
@@ -103,6 +133,12 @@ import { NgClass } from '@angular/common';
                   class="border-l border-slate-200 px-4 py-4 text-center !text-lg !font-black !text-slate-900"
                 >
                   الحالة
+                </th>
+
+                <th
+                  class="border-l border-slate-200 px-4 py-4 text-center !text-lg !font-black !text-slate-900"
+                >
+                  التصنيف
                 </th>
 
                 <th
@@ -155,6 +191,16 @@ import { NgClass } from '@angular/common';
                     'bg-emerald-50 hover:bg-emerald-100': book.status === status.FullyCollected,
                   }"
                 >
+                  @if (role === userRole.Admin) {
+                    <td class="border-l border-slate-200 px-6 py-5 text-center">
+                      <input
+                        type="checkbox"
+                        [checked]="selectedBookIds.has(book.id)"
+                        (change)="toggleSelection(book.id, $any($event.target).checked)"
+                      />
+                    </td>
+                  }
+
                   <!-- النوع -->
                   <td
                     class="border-l border-slate-200 px-6 py-5 text-base font-bold text-slate-800"
@@ -175,6 +221,11 @@ import { NgClass } from '@angular/common';
                     <app-status-badge [status]="book.status" />
                   </td>
 
+                  <!-- التصنيف -->
+                  <td class="border-l border-slate-200 px-6 py-5 text-base font-bold text-slate-800 text-center">
+                    {{ book.status === status.FullyCollected ? 'مكتمل' : 'غير مكتمل' }}
+                  </td>
+
                   <!-- الموزع -->
                   <td class="border-l border-slate-200 px-6 py-5 text-lg font-bold text-slate-800">
                     {{ book.distributorName || 'غير معين' }}
@@ -184,7 +235,18 @@ import { NgClass } from '@angular/common';
                   <td
                     class="border-l border-slate-200 px-6 py-5 text-base font-medium text-slate-700"
                   >
-                    {{ formatDate(book.deliveryDate) }}
+                    @if (!readonly && book.distributorId && canWriteLocked(book)) {
+                      <input
+                        class="field min-w-52 text-base"
+                        type="datetime-local"
+                        [ngModel]="toLocalInput(book.deliveryDate)"
+                        (change)="setDeliveryDate(book, $any($event.target).value)"
+                      />
+                    } @else if (!book.distributorId) {
+                      غير معين
+                    } @else {
+                      {{ formatDate(book.deliveryDate) }}
+                    }
                   </td>
 
                   <!-- تاريخ الاستلام -->
@@ -366,6 +428,9 @@ export class BooksTableComponent implements OnInit {
   loading = true;
   error = false;
   busyId: number | null = null;
+  bulkBusy = false;
+  exportBusy = false;
+  selectedBookIds = new Set<number>();
   noteOpenId: number | null = null;
   draftNote = '';
   filters = { type: '', status: '', distributorId: '', pageNumber: 1, pageSize: '20' };
@@ -401,6 +466,8 @@ export class BooksTableComponent implements OnInit {
             pageSize: this.filters.pageSize,
           })
         : await this.api.getBooks(this.filters);
+      this.sortBooks();
+      this.selectedBookIds.clear();
     } catch {
       this.error = true;
     } finally {
@@ -460,17 +527,20 @@ export class BooksTableComponent implements OnInit {
   async assign(book: Book, distributorId: string) {
     if (!distributorId) return;
     await this.run(book.id, async () => {
-      await this.api.assignBook(book.id, Number(distributorId));
+      const updated = await this.api.assignBook(book.id, Number(distributorId));
+      Object.assign(book, updated);
+      this.sortBooks();
       this.toast.show('تم تعيين الدفتر', 'success');
-    });
+    }, false);
   }
 
   async transfer(book: Book, distributorId: string) {
     if (!distributorId || Number(distributorId) === book.distributorId) return;
     await this.run(book.id, async () => {
-      await this.api.transferBook(book.id, Number(distributorId));
+      const updated = await this.api.transferBook(book.id, Number(distributorId));
+      Object.assign(book, updated);
       this.toast.show('تم نقل الدفتر', 'success');
-    });
+    }, false);
   }
 
   async changeStatus(book: Book, newStatus: number) {
@@ -482,6 +552,24 @@ export class BooksTableComponent implements OnInit {
       await this.api.changeBookStatus(book.id, Number(newStatus));
       this.toast.show('تم تغيير الحالة', 'success');
     });
+  }
+
+  async setDeliveryDate(book: Book, localValue: string) {
+    if (!localValue) return;
+    if (!book.distributorId) {
+      this.toast.show('لا يمكن تسجيل تاريخ التسليم قبل تعيين موزع', 'error');
+      return;
+    }
+    const deliveryDate = new Date(localValue);
+    if (book.receivedDate && deliveryDate > new Date(book.receivedDate)) {
+      this.toast.show('تاريخ التسليم لا يمكن أن يكون بعد تاريخ الاستلام', 'error');
+      return;
+    }
+    await this.run(book.id, async () => {
+      const updated = await this.api.updateBookDeliveryDate(book.id, deliveryDate.toISOString());
+      Object.assign(book, updated);
+      this.toast.show('تم تعديل تاريخ التسليم', 'success');
+    }, false);
   }
 
   async setReceived(book: Book, localValue: string) {
@@ -523,24 +611,145 @@ export class BooksTableComponent implements OnInit {
       return;
     }
     await this.run(book.id, async () => {
-      await this.api.updateBookSerial(book.id, serial);
+      const updated = await this.api.updateBookSerial(book.id, serial);
+      Object.assign(book, updated);
+      this.sortBooks();
       this.toast.show('تم تعديل السيريال', 'success');
-    });
+    }, false);
   }
 
   async deleteBook(book: Book) {
     if (!confirm('حذف الدفتر إجراء نهائي. هل تريد المتابعة؟')) return;
     await this.run(book.id, async () => {
       await this.api.deleteBook(book.id);
+      if (this.page) {
+        this.page.items = this.page.items.filter((item) => item.id !== book.id);
+      }
+      this.selectedBookIds.delete(book.id);
       this.toast.show('تم حذف الدفتر', 'success');
+    }, false);
+  }
+
+  async deleteSelected() {
+    if (!this.selectedBookIds.size) return;
+    if (!confirm(`حذف ${this.selectedBookIds.size} دفاتر إجراء نهائي. هل تريد المتابعة؟`)) return;
+    this.bulkBusy = true;
+    try {
+      const selected = Array.from(this.selectedBookIds);
+      await this.api.bulkDeleteBooks(selected);
+      if (this.page) {
+        this.page.items = this.page.items.filter((item) => !this.selectedBookIds.has(item.id));
+      }
+      this.selectedBookIds.clear();
+      this.toast.show('تم حذف الدفاتر المحددة', 'success');
+    } catch {
+      this.toast.show('تعذر حذف الدفاتر المحددة', 'error');
+    } finally {
+      this.bulkBusy = false;
+    }
+  }
+
+  toggleSelection(bookId: number, selected: boolean) {
+    if (selected) {
+      this.selectedBookIds.add(bookId);
+    } else {
+      this.selectedBookIds.delete(bookId);
+    }
+  }
+
+  isAllSelected() {
+    return !!this.page?.items?.length && this.page.items.every((item) => this.selectedBookIds.has(item.id));
+  }
+
+  toggleSelectAll(select: boolean) {
+    if (!this.page) return;
+    this.page.items.forEach((item) => {
+      if (select) {
+        this.selectedBookIds.add(item.id);
+      } else {
+        this.selectedBookIds.delete(item.id);
+      }
     });
   }
 
-  private async run(bookId: number, action: () => Promise<void>) {
+  async exportBooks() {
+    if (this.exportBusy) return;
+    this.exportBusy = true;
+    try {
+      const books = await this.fetchAllBooks();
+      this.downloadCsv(books);
+    } catch {
+      this.toast.show('تعذر تنزيل الدفاتر', 'error');
+    } finally {
+      this.exportBusy = false;
+    }
+  }
+
+  private async fetchAllBooks() {
+    const all: Book[] = [];
+    let pageNumber = 1;
+    const pageSize = 200;
+    while (true) {
+      const result = this.readonly
+        ? await this.api.getMyBooks({ pageNumber, pageSize })
+        : await this.api.getBooks({ ...this.filters, pageNumber, pageSize });
+      all.push(...result.items);
+      if (!result.hasNextPage) {
+        break;
+      }
+      pageNumber += 1;
+    }
+    return all;
+  }
+
+  private downloadCsv(books: Book[]) {
+    const headers = [
+      'نوع',
+      'بداية السيريال',
+      'نهاية السيريال',
+      'الحالة',
+      'مكتمل',
+      'الموزع',
+      'تاريخ التسليم',
+      'تاريخ الاستلام',
+      'ملاحظات',
+    ];
+    const rows = books.map((book) => [
+      this.typeLabel(book.type),
+      book.serialStart,
+      book.serialEnd,
+      BOOK_STATUS_LABELS[book.status],
+      book.status === BookStatus.FullyCollected ? 'نعم' : 'لا',
+      book.distributorName || '',
+      book.deliveryDate ? new Date(book.deliveryDate).toISOString() : '',
+      book.receivedDate ? new Date(book.receivedDate).toISOString() : '',
+      book.notes?.replace(/[\r\n]+/g, ' ') ?? '',
+    ]);
+    const csv = [headers, ...rows]
+      .map((row) => row.map((field) => `"${String(field).replace(/"/g, '""')}"`).join(','))
+      .join('\r\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'books-export.csv';
+    link.click();
+    URL.revokeObjectURL(url);
+  }
+
+  private sortBooks() {
+    if (this.page?.items?.length) {
+      this.page.items.sort((a, b) => a.serialStart - b.serialStart);
+    }
+  }
+
+  private async run(bookId: number, action: () => Promise<void>, reload = true) {
     this.busyId = bookId;
     try {
       await action();
-      await this.load();
+      if (reload) {
+        await this.load();
+      }
     } finally {
       this.busyId = null;
     }

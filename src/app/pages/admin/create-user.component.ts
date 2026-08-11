@@ -36,21 +36,17 @@ import { ToastService } from '../../core/toast.service';
     </select>
   </label>
 
-  
+  <label>
+    <span class="label !text-lg !font-black">
+      الاسم
+    </span>
 
-         @if (isDistributor) {
-          <label>
-            <span class="label !text-lg !font-black">
-              الاسم
-            </span>
-
-            <input
-              class="field !text-lg"
-              formControlName="name"
-              type="text"
-            />
-          </label>
-        }
+    <input
+      class="field !text-lg"
+      formControlName="name"
+      type="text"
+    />
+  </label>
 
   <label>
     <span class="label !text-lg !font-black">
@@ -104,14 +100,7 @@ export class CreateUserComponent {
       phone: ['', [Validators.required, Validators.pattern(PHONE_PATTERN)]],
       password: ['', [Validators.required, Validators.minLength(6)]],
       role: [UserRole.Accountant, Validators.required],
-      name: [''],
-    });
-    this.form.controls.role.valueChanges.subscribe((role) => {
-      const name = this.form.controls.name;
-      role === UserRole.Distributor
-        ? name.addValidators(Validators.required)
-        : name.clearValidators();
-      name.updateValueAndValidity();
+      name: ['', Validators.required],
     });
   }
 
@@ -128,7 +117,7 @@ export class CreateUserComponent {
         phone: value.phone,
         password: value.password,
         role: value.role,
-        name: value.role === UserRole.Distributor ? value.name : null,
+        name: value.name,
       });
       this.toast.show('تم إنشاء المستخدم', 'success');
       this.router.navigate(['/admin/users']);

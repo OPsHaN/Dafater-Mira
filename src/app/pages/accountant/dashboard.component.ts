@@ -21,6 +21,16 @@ import { StateBlockComponent } from '../../shared/state-block.component';
           <p class="text-sm font-bold text-slate-500">إجمالي الدفاتر</p>
           <strong class="mt-3 block text-4xl text-slate-950">{{ total }}</strong>
         </article>
+        <article class="panel">
+          <p class="text-sm font-bold text-slate-500">دفاتر التحصيل</p>
+          <strong class="mt-3 block text-4xl text-teal-800">{{ collectionCount }}</strong>
+        </article>
+        <article class="panel">
+          <p class="text-sm font-bold text-slate-500">دفاتر المرتجعات</p>
+          <strong class="mt-3 block text-4xl text-teal-800">{{ returnCount }}</strong>
+        </article>
+      </section>
+      <section class="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         @for (item of cards; track item.status) {
           <article class="panel">
             <p class="text-sm font-bold text-slate-500">{{ item.label }}</p>
@@ -35,6 +45,8 @@ export class DashboardComponent implements OnInit {
   loading = true;
   error = false;
   total = 0;
+  collectionCount = 0;
+  returnCount = 0;
   cards: { status: BookStatus; label: string; count: number }[] = [];
 
   constructor(private api: ApiService) {}
@@ -49,12 +61,17 @@ export class DashboardComponent implements OnInit {
     try {
       const all = await this.api.getBooks({ pageNumber: 1, pageSize: 1 });
       this.total = all.totalCount;
-      this.cards = await Promise.all(
+      const counts = await Promise.all(
         Object.entries(BOOK_STATUS_LABELS).map(async ([status, label]) => {
           const result = await this.api.getBooks({ status: Number(status), pageNumber: 1, pageSize: 1 });
           return { status: Number(status) as BookStatus, label, count: result.totalCount };
         }),
       );
+      this.cards = counts;
+      const collection = await this.api.getBooks({ type: 1, pageNumber: 1, pageSize: 1 });
+      const returns = await this.api.getBooks({ type: 2, pageNumber: 1, pageSize: 1 });
+      this.collectionCount = collection.totalCount;
+      this.returnCount = returns.totalCount;
     } catch {
       this.error = true;
     } finally {

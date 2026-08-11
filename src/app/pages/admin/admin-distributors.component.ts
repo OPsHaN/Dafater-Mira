@@ -29,7 +29,7 @@ import { StateBlockComponent } from '../../shared/state-block.component';
           <article class="panel">
             <div class="flex items-start justify-between gap-3">
               <div>
-                <h3 class="text-lg font-black text-slate-950">{{ user.distributorName || 'موزع بدون اسم' }}</h3>
+                <h3 class="text-lg font-black text-slate-950">{{ user.name || 'موزع بدون اسم' }}</h3>
                 <p class="mt-1 text-lg text-slate-500" dir="rtl">{{ user.phone }}</p>
               </div>
               <span class="rounded-full bg-blue-50 px-3 py-1 text-sm font-bold text-blue-700">موزع</span>
@@ -100,7 +100,7 @@ export class AdminDistributorsComponent implements OnInit {
 
   startEdit(user: AdminUser) {
     this.editing = user;
-    this.editName = user.distributorName ?? '';
+    this.editName = user.name ?? '';
     this.editPhone = user.phone;
     this.editPassword = '';
   }
