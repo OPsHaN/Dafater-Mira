@@ -93,7 +93,7 @@ export class ApiService {
 
   async updateBookDeliveryDate(id: number, deliveryDate: string) {
     return this.unwrap<Book>(
-      this.client.put(`/api/v1/admin/books/${id}/delivery-date`, { deliveryDate }),
+      this.client.put(`/api/v1/books/${id}/delivery-date`, { deliveryDate }),
     );
   }
 

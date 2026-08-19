@@ -528,45 +528,42 @@ export class BooksTableComponent implements OnInit {
     }
   }
 
-  async saveDeliveryDate(book: Book) {
-    const localValue = this.deliveryDateDrafts.get(book.id);
+async saveDeliveryDate(book: Book) {
+  const localValue = this.deliveryDateDrafts.get(book.id);
 
-    if (!localValue) {
-      this.toast.show('اختر تاريخ التسليم أولًا', 'error');
-      return;
-    }
-
-    if (!book.distributorId) {
-      this.toast.show('لا يمكن تسجيل تاريخ التسليم قبل تعيين موزع', 'error');
-      return;
-    }
-
-    const deliveryDate = new Date(localValue);
-
-    if (Number.isNaN(deliveryDate.getTime())) {
-      this.toast.show('تاريخ التسليم غير صحيح', 'error');
-      return;
-    }
-
-    if (book.receivedDate && deliveryDate > new Date(book.receivedDate)) {
-      this.toast.show('تاريخ التسليم لا يمكن أن يكون بعد تاريخ الاستلام', 'error');
-      return;
-    }
-
-    await this.run(
-      book.id,
-      async () => {
-        const updated = await this.api.updateBookDeliveryDate(book.id, deliveryDate.toISOString());
-
-        Object.assign(book, updated);
-
-        this.deliveryDateDrafts.delete(book.id);
-
-        this.toast.show('تم حفظ تاريخ التسليم بنجاح', 'success');
-      },
-      false,
-    );
+  if (!localValue) {
+    this.toast.show('اختر تاريخ التسليم أولًا', 'error');
+    return;
   }
+
+  if (!book.distributorId) {
+    this.toast.show('لا يمكن تسجيل تاريخ التسليم قبل تعيين موزع', 'error');
+    return;
+  }
+
+  const deliveryDate = new Date(localValue);
+
+  if (Number.isNaN(deliveryDate.getTime())) {
+    this.toast.show('تاريخ التسليم غير صحيح', 'error');
+    return;
+  }
+
+  if (book.receivedDate && deliveryDate > new Date(book.receivedDate)) {
+    this.toast.show('تاريخ التسليم لا يمكن أن يكون بعد تاريخ الاستلام', 'error');
+    return;
+  }
+
+  await this.run(book.id, async () => {
+    await this.api.updateBookDeliveryDate(
+      book.id,
+      deliveryDate.toISOString(),
+    );
+
+    this.deliveryDateDrafts.delete(book.id);
+
+    this.toast.show('تم حفظ تاريخ التسليم بنجاح', 'success');
+  });
+}
 
   async saveReceivedDate(book: Book) {
     const localValue = this.receivedDateDrafts.get(book.id);
