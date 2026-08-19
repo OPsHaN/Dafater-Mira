@@ -166,4 +166,5 @@ export class LayoutComponent {
     const current = this.auth.role();
     return current ? ROLE_LABELS[current] : '';
   }
+  
 }

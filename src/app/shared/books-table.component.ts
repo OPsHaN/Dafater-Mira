@@ -108,7 +108,9 @@ import { NgClass } from '@angular/common';
             <thead>
               <tr class="border-b-2 border-slate-100 bg-slate-100">
                 @if (role === userRole.Admin) {
-                  <th class="border-l border-slate-200 px-4 py-4 text-center !text-lg !font-black !text-slate-900">
+                  <th
+                    class="border-l border-slate-200 px-4 py-4 text-center !text-lg !font-black !text-slate-900"
+                  >
                     <input
                       type="checkbox"
                       [checked]="isAllSelected()"
@@ -217,12 +219,16 @@ import { NgClass } from '@angular/common';
                   </td>
 
                   <!-- الحالة -->
-                  <td class="border-l border-slate-200 px-6 py-5 text-xl font-black text-slate-800 text-center">
+                  <td
+                    class="border-l border-slate-200 px-6 py-5 text-xl font-black text-slate-800 text-center"
+                  >
                     <app-status-badge [status]="book.status" />
                   </td>
 
                   <!-- التصنيف -->
-                  <td class="border-l border-slate-200 px-6 py-5 text-base font-bold text-slate-800 text-center">
+                  <td
+                    class="border-l border-slate-200 px-6 py-5 text-base font-bold text-slate-800 text-center"
+                  >
                     {{ book.status === status.FullyCollected ? 'مكتمل' : 'غير مكتمل' }}
                   </td>
 
@@ -235,15 +241,33 @@ import { NgClass } from '@angular/common';
                   <td
                     class="border-l border-slate-200 px-6 py-5 text-base font-medium text-slate-700"
                   >
-                    @if (!readonly && book.distributorId && canWriteLocked(book)) {
-                      <input
-                        class="field min-w-52 text-base"
-                        type="datetime-local"
-                        [ngModel]="toLocalInput(book.deliveryDate)"
-                        (change)="setDeliveryDate(book, $any($event.target).value)"
-                      />
-                    } @else if (!book.distributorId) {
-                      غير معين
+                    @if (!book.distributorId) {
+                      <span class="text-slate-400">غير معين</span>
+                    } @else if (!readonly && canWriteLocked(book)) {
+                      <div class="flex flex-col gap-2">
+                        @if (!book.deliveryDate) {
+                          <span class="font-bold text-amber-600"> لم يتم تسجيل تاريخ التسليم </span>
+                        }
+
+                        <input
+                          class="field min-w-52 text-base"
+                          type="datetime-local"
+                          [ngModel]="
+                            deliveryDateDrafts.get(book.id) ?? toLocalInput(book.deliveryDate)
+                          "
+                          [disabled]="busyId === book.id"
+                          (ngModelChange)="deliveryDateDrafts.set(book.id, $event)"
+                        />
+
+                        <button
+                          class="btn-primary w-fit text-base"
+                          type="button"
+                          [disabled]="busyId === book.id || !deliveryDateDrafts.get(book.id)"
+                          (click)="saveDeliveryDate(book)"
+                        >
+                          {{ busyId === book.id ? 'جاري الحفظ...' : 'حفظ تاريخ التسليم' }}
+                        </button>
+                      </div>
                     } @else {
                       {{ formatDate(book.deliveryDate) }}
                     }
@@ -254,12 +278,26 @@ import { NgClass } from '@angular/common';
                     class="border-l border-slate-200 px-6 py-5 text-base font-medium text-slate-700"
                   >
                     @if (!readonly && book.deliveryDate && canWriteLocked(book)) {
-                      <input
-                        class="field min-w-52 text-base"
-                        type="datetime-local"
-                        [ngModel]="toLocalInput(book.receivedDate)"
-                        (change)="setReceived(book, $any($event.target).value)"
-                      />
+                      <div class="flex flex-col gap-2">
+                        <input
+                          class="field min-w-52 text-base"
+                          type="datetime-local"
+                          [ngModel]="
+                            receivedDateDrafts.get(book.id) ?? toLocalInput(book.receivedDate)
+                          "
+                          [disabled]="busyId === book.id"
+                          (ngModelChange)="receivedDateDrafts.set(book.id, $event)"
+                        />
+
+                        <button
+                          class="btn-primary w-fit text-base"
+                          type="button"
+                          [disabled]="busyId === book.id || !receivedDateDrafts.get(book.id)"
+                          (click)="saveReceivedDate(book)"
+                        >
+                          {{ busyId === book.id ? 'جاري الحفظ...' : 'حفظ تاريخ الاستلام' }}
+                        </button>
+                      </div>
                     } @else {
                       {{ formatDate(book.receivedDate) }}
                     }
@@ -434,7 +472,8 @@ export class BooksTableComponent implements OnInit {
   noteOpenId: number | null = null;
   draftNote = '';
   filters = { type: '', status: '', distributorId: '', pageNumber: 1, pageSize: '20' };
-
+  deliveryDateDrafts = new Map<number, string>();
+  receivedDateDrafts = new Map<number, string>();
   constructor(
     private api: ApiService,
     private route: ActivatedRoute,
@@ -489,6 +528,80 @@ export class BooksTableComponent implements OnInit {
     }
   }
 
+  async saveDeliveryDate(book: Book) {
+    const localValue = this.deliveryDateDrafts.get(book.id);
+
+    if (!localValue) {
+      this.toast.show('اختر تاريخ التسليم أولًا', 'error');
+      return;
+    }
+
+    if (!book.distributorId) {
+      this.toast.show('لا يمكن تسجيل تاريخ التسليم قبل تعيين موزع', 'error');
+      return;
+    }
+
+    const deliveryDate = new Date(localValue);
+
+    if (Number.isNaN(deliveryDate.getTime())) {
+      this.toast.show('تاريخ التسليم غير صحيح', 'error');
+      return;
+    }
+
+    if (book.receivedDate && deliveryDate > new Date(book.receivedDate)) {
+      this.toast.show('تاريخ التسليم لا يمكن أن يكون بعد تاريخ الاستلام', 'error');
+      return;
+    }
+
+    await this.run(
+      book.id,
+      async () => {
+        const updated = await this.api.updateBookDeliveryDate(book.id, deliveryDate.toISOString());
+
+        Object.assign(book, updated);
+
+        this.deliveryDateDrafts.delete(book.id);
+
+        this.toast.show('تم حفظ تاريخ التسليم بنجاح', 'success');
+      },
+      false,
+    );
+  }
+
+  async saveReceivedDate(book: Book) {
+    const localValue = this.receivedDateDrafts.get(book.id);
+
+    if (!localValue) {
+      this.toast.show('اختر تاريخ الاستلام أولًا', 'error');
+      return;
+    }
+
+    if (!book.deliveryDate) {
+      this.toast.show('لا يمكن تسجيل تاريخ الاستلام قبل تاريخ التسليم', 'error');
+      return;
+    }
+
+    const receivedDate = new Date(localValue);
+
+    if (Number.isNaN(receivedDate.getTime())) {
+      this.toast.show('تاريخ الاستلام غير صحيح', 'error');
+      return;
+    }
+
+    if (receivedDate < new Date(book.deliveryDate)) {
+      this.toast.show('تاريخ الاستلام لا يمكن أن يكون قبل تاريخ التسليم', 'error');
+      return;
+    }
+
+    await this.run(book.id, async () => {
+      await this.api.setReceivedDate(book.id, receivedDate.toISOString());
+
+      this.receivedDateDrafts.delete(book.id);
+
+      this.toast.show('تم حفظ تاريخ الاستلام بنجاح', 'success');
+    });
+  }
+
   updateFilters() {
     this.goToPage(1);
   }
@@ -526,21 +639,29 @@ export class BooksTableComponent implements OnInit {
 
   async assign(book: Book, distributorId: string) {
     if (!distributorId) return;
-    await this.run(book.id, async () => {
-      const updated = await this.api.assignBook(book.id, Number(distributorId));
-      Object.assign(book, updated);
-      this.sortBooks();
-      this.toast.show('تم تعيين الدفتر', 'success');
-    }, false);
+    await this.run(
+      book.id,
+      async () => {
+        const updated = await this.api.assignBook(book.id, Number(distributorId));
+        Object.assign(book, updated);
+        this.sortBooks();
+        this.toast.show('تم تعيين الدفتر', 'success');
+      },
+      false,
+    );
   }
 
   async transfer(book: Book, distributorId: string) {
     if (!distributorId || Number(distributorId) === book.distributorId) return;
-    await this.run(book.id, async () => {
-      const updated = await this.api.transferBook(book.id, Number(distributorId));
-      Object.assign(book, updated);
-      this.toast.show('تم نقل الدفتر', 'success');
-    }, false);
+    await this.run(
+      book.id,
+      async () => {
+        const updated = await this.api.transferBook(book.id, Number(distributorId));
+        Object.assign(book, updated);
+        this.toast.show('تم نقل الدفتر', 'success');
+      },
+      false,
+    );
   }
 
   async changeStatus(book: Book, newStatus: number) {
@@ -565,11 +686,15 @@ export class BooksTableComponent implements OnInit {
       this.toast.show('تاريخ التسليم لا يمكن أن يكون بعد تاريخ الاستلام', 'error');
       return;
     }
-    await this.run(book.id, async () => {
-      const updated = await this.api.updateBookDeliveryDate(book.id, deliveryDate.toISOString());
-      Object.assign(book, updated);
-      this.toast.show('تم تعديل تاريخ التسليم', 'success');
-    }, false);
+    await this.run(
+      book.id,
+      async () => {
+        const updated = await this.api.updateBookDeliveryDate(book.id, deliveryDate.toISOString());
+        Object.assign(book, updated);
+        this.toast.show('تم تعديل تاريخ التسليم', 'success');
+      },
+      false,
+    );
   }
 
   async setReceived(book: Book, localValue: string) {
@@ -610,24 +735,32 @@ export class BooksTableComponent implements OnInit {
       this.toast.show('بداية السيريال يجب أن تكون رقم أكبر من صفر', 'error');
       return;
     }
-    await this.run(book.id, async () => {
-      const updated = await this.api.updateBookSerial(book.id, serial);
-      Object.assign(book, updated);
-      this.sortBooks();
-      this.toast.show('تم تعديل السيريال', 'success');
-    }, false);
+    await this.run(
+      book.id,
+      async () => {
+        const updated = await this.api.updateBookSerial(book.id, serial);
+        Object.assign(book, updated);
+        this.sortBooks();
+        this.toast.show('تم تعديل السيريال', 'success');
+      },
+      false,
+    );
   }
 
   async deleteBook(book: Book) {
     if (!confirm('حذف الدفتر إجراء نهائي. هل تريد المتابعة؟')) return;
-    await this.run(book.id, async () => {
-      await this.api.deleteBook(book.id);
-      if (this.page) {
-        this.page.items = this.page.items.filter((item) => item.id !== book.id);
-      }
-      this.selectedBookIds.delete(book.id);
-      this.toast.show('تم حذف الدفتر', 'success');
-    }, false);
+    await this.run(
+      book.id,
+      async () => {
+        await this.api.deleteBook(book.id);
+        if (this.page) {
+          this.page.items = this.page.items.filter((item) => item.id !== book.id);
+        }
+        this.selectedBookIds.delete(book.id);
+        this.toast.show('تم حذف الدفتر', 'success');
+      },
+      false,
+    );
   }
 
   async deleteSelected() {
@@ -658,7 +791,10 @@ export class BooksTableComponent implements OnInit {
   }
 
   isAllSelected() {
-    return !!this.page?.items?.length && this.page.items.every((item) => this.selectedBookIds.has(item.id));
+    return (
+      !!this.page?.items?.length &&
+      this.page.items.every((item) => this.selectedBookIds.has(item.id))
+    );
   }
 
   toggleSelectAll(select: boolean) {
@@ -739,7 +875,8 @@ export class BooksTableComponent implements OnInit {
 
   private sortBooks() {
     if (this.page?.items?.length) {
-      this.page.items.sort((a, b) => a.serialStart - b.serialStart);
+      // ترتيب تنازلي: السيريال الأكبر يظهر أولًا في الصفحة رقم 1
+      this.page.items.sort((a, b) => b.serialStart - a.serialStart);
     }
   }
 
