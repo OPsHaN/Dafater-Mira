@@ -89,9 +89,14 @@ import { NgClass } from '@angular/common';
             </button>
           }
         </div>
-        <button class="btn-secondary" type="button" [disabled]="exportBusy" (click)="exportBooks()">
+              <button class="btn-secondary" type="button" [disabled]="exportBusy" (click)="exportBooks()">
           {{ exportBusy ? 'جاري التحميل...' : 'تحميل الدفاتر كإكسيل' }}
         </button>
+
+      </div>
+
+      <div class="my-3">
+        <app-pagination [page]="page" (change)="goToPage($event)" />
       </div>
     }
 
