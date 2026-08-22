@@ -898,24 +898,37 @@ toLocalInput(value: string | null) {
       book.receivedDate ? new Date(book.receivedDate).toISOString() : '',
       book.notes?.replace(/[\r\n]+/g, ' ') ?? '',
     ]);
-    const csv = [headers, ...rows]
-      .map((row) => row.map((field) => `"${String(field).replace(/"/g, '""')}"`).join(','))
-      .join('\r\n');
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = 'books-export.csv';
-    link.click();
-    URL.revokeObjectURL(url);
+const csv = [headers, ...rows]
+  .map((row) =>
+    row
+      .map((field) => `"${String(field).replace(/"/g, '""')}"`)
+      .join(',')
+  )
+  .join('\r\n');
+
+const BOM = '\uFEFF';
+
+const blob = new Blob(
+  [BOM + csv],
+  { type: 'text/csv;charset=utf-8;' }
+);
+
+const url = URL.createObjectURL(blob);
+const link = document.createElement('a');
+
+link.href = url;
+link.download = 'books-export.csv';
+link.click();
+
+URL.revokeObjectURL(url);
   }
 
-  private sortBooks() {
-    if (this.page?.items?.length) {
-      // ترتيب تنازلي: السيريال الأكبر يظهر أولًا في الصفحة رقم 1
-      this.page.items.sort((a, b) => b.serialStart - a.serialStart);
-    }
+private sortBooks() {
+  if (this.page?.items?.length) {
+    // ترتيب تصاعدي: السيريال الأصغر يظهر أولًا
+    this.page.items.sort((a, b) => a.serialStart - b.serialStart);
   }
+}
 
   private async run(bookId: number, action: () => Promise<void>, reload = true) {
     this.busyId = bookId;
