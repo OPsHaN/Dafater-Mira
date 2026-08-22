@@ -9,7 +9,7 @@ import { StatusBadgeComponent } from '../../shared/status-badge.component';
   standalone: true,
   imports: [FormsModule, StateBlockComponent, StatusBadgeComponent],
   template: `
-    <section class="panel max-w-2xl">
+    <section class="panel">
       <h2 class="text-xl font-black">بحث برقم الإيصال</h2>
       <div class="mt-4 flex flex-col gap-2 sm:flex-row">
         <input class="field" type="number" min="1" [(ngModel)]="receiptNumber" placeholder="رقم الإيصال" />
@@ -24,7 +24,7 @@ import { StatusBadgeComponent } from '../../shared/status-badge.component';
         <app-state-block title="لا يوجد دفتر يحتوي رقم الإيصال" icon="🔎" />
       }
       @if (book) {
-        <article class="panel max-w-2xl">
+        <article class="panel ">
           <div class="flex flex-wrap items-center justify-between gap-3">
             <div>
               <p class="text-sm text-slate-500">نطاق الدفتر</p>

@@ -8,7 +8,7 @@ import { ToastService } from '../../core/toast.service';
   standalone: true,
   imports: [FormsModule],
   template: `
-    <section class="panel max-w-3xl">
+    <section class="panel ">
       <div class="mb-5">
         <h2 class="text-xl font-black">إنشاء دفاتر</h2>
         <p class="text-sm text-slate-500">الإنشاء يتم فقط كدفعة، حتى لو دفتر واحد.</p>
