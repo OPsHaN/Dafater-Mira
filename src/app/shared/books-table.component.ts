@@ -251,7 +251,7 @@ import { NgClass } from '@angular/common';
 
                         <input
                           class="field min-w-52 text-base"
-                          type="datetime-local"
+                          type="date"
                           [ngModel]="
                             deliveryDateDrafts.get(book.id) ?? toLocalInput(book.deliveryDate)
                           "
@@ -281,7 +281,7 @@ import { NgClass } from '@angular/common';
                       <div class="flex flex-col gap-2">
                         <input
                           class="field min-w-52 text-base"
-                          type="datetime-local"
+                          type="date"
                           [ngModel]="
                             receivedDateDrafts.get(book.id) ?? toLocalInput(book.receivedDate)
                           "
@@ -451,7 +451,7 @@ export class BooksTableComponent implements OnInit {
   @Input() role: UserRole = UserRole.Accountant;
   @Input() readonly = false;
   @Input() showFilters = true;
-
+  private initialized = false;
   readonly type = BookType;
   readonly status = BookStatus;
   readonly userRole = UserRole;
@@ -495,24 +495,28 @@ export class BooksTableComponent implements OnInit {
     if (!this.readonly) this.loadDistributors();
   }
 
-  async load() {
-    this.loading = true;
-    this.error = false;
-    try {
-      this.page = this.readonly
-        ? await this.api.getMyBooks({
-            pageNumber: this.filters.pageNumber,
-            pageSize: this.filters.pageSize,
-          })
-        : await this.api.getBooks(this.filters);
-      this.sortBooks();
-      this.selectedBookIds.clear();
-    } catch {
-      this.error = true;
-    } finally {
-      this.loading = false;
-    }
+
+
+async load() {
+  this.loading = true;
+  this.error = false;
+
+  try {
+    this.page = this.readonly
+      ? await this.api.getMyBooks({
+          pageNumber: this.filters.pageNumber,
+          pageSize: this.filters.pageSize,
+        })
+      : await this.api.getBooks(this.filters);
+
+    this.sortBooks();
+    this.selectedBookIds.clear();
+  } catch {
+    this.error = true;
+  } finally {
+    this.loading = false;
   }
+}
 
   async loadDistributors() {
     try {
@@ -528,6 +532,10 @@ export class BooksTableComponent implements OnInit {
     }
   }
 
+private formatDateForApi(value: string): string {
+  return `${value}T00:00:00`;
+}
+
 async saveDeliveryDate(book: Book) {
   const localValue = this.deliveryDateDrafts.get(book.id);
 
@@ -541,7 +549,7 @@ async saveDeliveryDate(book: Book) {
     return;
   }
 
-  const deliveryDate = new Date(localValue);
+  const deliveryDate = new Date(`${localValue}T00:00:00`);
 
   if (Number.isNaN(deliveryDate.getTime())) {
     this.toast.show('تاريخ التسليم غير صحيح', 'error');
@@ -556,7 +564,7 @@ async saveDeliveryDate(book: Book) {
   await this.run(book.id, async () => {
     await this.api.updateBookDeliveryDate(
       book.id,
-      deliveryDate.toISOString(),
+      this.formatDateForApi(localValue),
     );
 
     this.deliveryDateDrafts.delete(book.id);
@@ -565,52 +573,81 @@ async saveDeliveryDate(book: Book) {
   });
 }
 
-  async saveReceivedDate(book: Book) {
-    const localValue = this.receivedDateDrafts.get(book.id);
+ async saveReceivedDate(book: Book) {
+  const localValue = this.receivedDateDrafts.get(book.id);
 
-    if (!localValue) {
-      this.toast.show('اختر تاريخ الاستلام أولًا', 'error');
-      return;
-    }
-
-    if (!book.deliveryDate) {
-      this.toast.show('لا يمكن تسجيل تاريخ الاستلام قبل تاريخ التسليم', 'error');
-      return;
-    }
-
-    const receivedDate = new Date(localValue);
-
-    if (Number.isNaN(receivedDate.getTime())) {
-      this.toast.show('تاريخ الاستلام غير صحيح', 'error');
-      return;
-    }
-
-    if (receivedDate < new Date(book.deliveryDate)) {
-      this.toast.show('تاريخ الاستلام لا يمكن أن يكون قبل تاريخ التسليم', 'error');
-      return;
-    }
-
-    await this.run(book.id, async () => {
-      await this.api.setReceivedDate(book.id, receivedDate.toISOString());
-
-      this.receivedDateDrafts.delete(book.id);
-
-      this.toast.show('تم حفظ تاريخ الاستلام بنجاح', 'success');
-    });
+  if (!localValue) {
+    this.toast.show('اختر تاريخ الاستلام أولًا', 'error');
+    return;
   }
 
-  updateFilters() {
-    this.goToPage(1);
+  if (!book.deliveryDate) {
+    this.toast.show('لا يمكن تسجيل تاريخ الاستلام قبل تاريخ التسليم', 'error');
+    return;
   }
 
-  goToPage(pageNumber: number) {
-    this.router.navigate([], {
+  const receivedDate = new Date(`${localValue}T00:00:00`);
+
+  if (Number.isNaN(receivedDate.getTime())) {
+    this.toast.show('تاريخ الاستلام غير صحيح', 'error');
+    return;
+  }
+
+  if (receivedDate < new Date(book.deliveryDate)) {
+    this.toast.show('تاريخ الاستلام لا يمكن أن يكون قبل تاريخ التسليم', 'error');
+    return;
+  }
+
+  await this.run(book.id, async () => {
+    await this.api.setReceivedDate(
+      book.id,
+      this.formatDateForApi(localValue),
+    );
+
+    this.receivedDateDrafts.delete(book.id);
+
+    this.toast.show('تم حفظ تاريخ الاستلام بنجاح', 'success');
+  });
+}
+
+async updateFilters() {
+  try {
+    // نجيب الصفحة الأولى فقط لمعرفة إجمالي الصفحات
+    const firstPage = this.readonly
+      ? await this.api.getMyBooks({
+          pageNumber: 1,
+          pageSize: this.filters.pageSize,
+        })
+      : await this.api.getBooks({
+          ...this.filters,
+          pageNumber: 1,
+        });
+
+    // نذهب لآخر صفحة في الـ API
+    await this.router.navigate([], {
       relativeTo: this.route,
-      queryParams: { ...this.filters, pageNumber },
+      queryParams: {
+        ...this.filters,
+        pageNumber: firstPage.totalPages,
+      },
       queryParamsHandling: 'merge',
     });
+  } catch {
+    this.toast.show('تعذر تحديث الفلاتر', 'error');
   }
+}
+  
 
+goToPage(apiPageNumber: number) {
+  this.router.navigate([], {
+    relativeTo: this.route,
+    queryParams: {
+      ...this.filters,
+      pageNumber: apiPageNumber,
+    },
+    queryParamsHandling: 'merge',
+  });
+}
   canWriteLocked(book: Book) {
     return this.role === UserRole.Accountant || book.status !== BookStatus.FullyCollected;
   }
@@ -619,20 +656,18 @@ async saveDeliveryDate(book: Book) {
     return BOOK_TYPE_LABELS[type];
   }
 
-  formatDate(value: string | null) {
-    return value
-      ? new Intl.DateTimeFormat('ar-EG', { dateStyle: 'medium', timeStyle: 'short' }).format(
-          new Date(value),
-        )
-      : '-';
-  }
+formatDate(value: string | null) {
+  return value
+    ? new Intl.DateTimeFormat('ar-EG', { dateStyle: 'medium' }).format(new Date(value))
+    : '-';
+}
 
-  toLocalInput(value: string | null) {
-    if (!value) return '';
-    const date = new Date(value);
-    date.setMinutes(date.getMinutes() - date.getTimezoneOffset());
-    return date.toISOString().slice(0, 16);
-  }
+toLocalInput(value: string | null) {
+  if (!value) return '';
+  const date = new Date(value);
+  date.setMinutes(date.getMinutes() - date.getTimezoneOffset());
+  return date.toISOString().slice(0, 10); // ⬅️ "2026-08-21" بس
+}
 
   async assign(book: Book, distributorId: string) {
     if (!distributorId) return;

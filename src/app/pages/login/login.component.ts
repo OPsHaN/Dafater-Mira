@@ -130,7 +130,7 @@ import { ToastService } from '../../core/toast.service';
               </a>
             </p>
             <p class="mt-8 text-center text-sm font-medium text-slate-400">
-              Software Version 1.1.1
+              Software Version 1.1.2
             </p>
           </div>
         </div>
