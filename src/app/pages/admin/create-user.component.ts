@@ -9,7 +9,7 @@ import { ToastService } from '../../core/toast.service';
   standalone: true,
   imports: [ReactiveFormsModule],
   template: `
-    <section class="panel max-w-2xl">
+    <section class="panel">
       <h2 class="text-xl font-black text-slate-950">إنشاء مستخدم</h2>
 <form
   class="mt-5 grid gap-5 text-lg"
